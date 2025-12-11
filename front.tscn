@@ -1,4 +1,127 @@
-[gd_scene format=3 uid="uid://dsec3oj76x34l"]
+[gd_scene load_steps=6 format=3 uid="uid://dsec3oj76x34l"]
+
+[sub_resource type="GDScript" id="GDScript_7b4sd"]
+script/source = "extends Control
+
+var DB
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	#ShowUserList()
+	pass
+func ShowUserList():
+	$Window.when_pop()
+	$Window.show()
+"
+
+[sub_resource type="GDScript" id="GDScript_uekkd"]
+script/source = "extends VBoxContainer
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+
+func _on_open_file_btn_button_down() -> void:
+	$\"../../../FileDialog\".show()
+"
+
+[sub_resource type="GDScript" id="GDScript_xncio"]
+script/source = "extends VBoxContainer
+const BTN := preload(\"res://data_btn.tscn\")
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+func Flush():
+	for i in get_children():
+		i.queue_free()
+	
+
+func FillData(title:String, msg:String):
+	var data = BTN.instantiate()
+	data.SetData(title, msg)
+	add_child(data)
+
+func SetData(data:String):
+	print(data)
+	pass
+
+
+
+func _on_file_dialog_file_selected(path: String) -> void:
+	var gpath = ProjectSettings.globalize_path(path)
+	FillData(path.get_file().get_basename(), gpath)
+	
+"
+
+[sub_resource type="GDScript" id="GDScript_h5p6x"]
+script/source = "extends Window
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+func get_user_list() -> Array:
+	var arr:Array
+	arr.push_back(\"temp\")
+	return arr
+
+func when_pop():
+	$UI/UserScroll/LIST.Flush()
+	var usrs = get_user_list()
+	for i in usrs:
+		$UI/UserScroll/LIST.FillData(i, i)
+	
+"
+
+[sub_resource type="GDScript" id="GDScript_xpgvt"]
+script/source = "extends VBoxContainer
+
+const BTN := preload(\"res://data_btn.tscn\")
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+func Flush():
+	for i in get_children():
+		i.queue_free()
+	
+
+func FillData(title:String, msg:String):
+	var data = BTN.instantiate()
+	data.SetData(title, msg)
+	add_child(data)
+
+func SetData(data:String):
+	print(data)
+	pass
+"
 
 [node name="Front" type="Control"]
 layout_mode = 3
@@ -8,6 +131,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
+script = SubResource("GDScript_7b4sd")
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
 layout_mode = 1
@@ -38,14 +162,69 @@ auto_brace_completion_highlight_matching = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ShareList" type="ScrollContainer" parent="PanelContainer/HBoxContainer"]
+[node name="SharedFiles" type="VBoxContainer" parent="PanelContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+script = SubResource("GDScript_uekkd")
 
-[node name="TEMP SHARED" type="Panel" parent="PanelContainer/HBoxContainer/ShareList"]
+[node name="ListScroll" type="ScrollContainer" parent="PanelContainer/HBoxContainer/SharedFiles"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
-[node name="CTRLS" type="VBoxContainer" parent="PanelContainer/HBoxContainer"]
+[node name="List" type="VBoxContainer" parent="PanelContainer/HBoxContainer/SharedFiles/ListScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
+script = SubResource("GDScript_xncio")
+
+[node name="OpenFileBTN" type="Button" parent="PanelContainer/HBoxContainer/SharedFiles"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Select File"
+
+[node name="FileDialog" type="FileDialog" parent="."]
+title = "Open a File or Directory"
+ok_button_text = "Open"
+file_mode = 3
+show_hidden_files = true
+use_native_dialog = true
+
+[node name="Window" type="Window" parent="."]
+disable_3d = true
+transparent_bg = true
+title = "Send To"
+initial_position = 4
+size = Vector2i(400, 800)
+visible = false
+always_on_top = true
+popup_window = true
+script = SubResource("GDScript_h5p6x")
+
+[node name="UI" type="Control" parent="Window"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="UserScroll" type="ScrollContainer" parent="Window/UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LIST" type="VBoxContainer" parent="Window/UI/UserScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = SubResource("GDScript_xpgvt")
+
+[connection signal="button_down" from="PanelContainer/HBoxContainer/SharedFiles/OpenFileBTN" to="PanelContainer/HBoxContainer/SharedFiles" method="_on_open_file_btn_button_down"]
+[connection signal="file_selected" from="FileDialog" to="PanelContainer/HBoxContainer/SharedFiles/ListScroll/List" method="_on_file_dialog_file_selected"]

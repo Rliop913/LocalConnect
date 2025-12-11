@@ -1,0 +1,30 @@
+[gd_scene load_steps=2 format=3 uid="uid://bts8fyi6gthgw"]
+
+[sub_resource type="GDScript" id="GDScript_b7tee"]
+script/source = "extends Button
+var innerData:String = \"\"
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+func SetData(title:String, data:String) -> void:
+	text = title
+	innerData = data
+
+
+func _on_button_down() -> void:
+	$\"../\".SetData(innerData)
+"
+
+[node name="DataBTN" type="Button"]
+custom_minimum_size = Vector2(150, 50)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+script = SubResource("GDScript_b7tee")
+
+[connection signal="button_down" from="." to="." method="_on_button_down"]
