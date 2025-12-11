@@ -2,4 +2,81 @@
 
 (in-package #:clisp-back)
 
-(format t "Hello world!~%")
+
+(defun txt2qr (text)
+    (flexi-streams:with-output-to-sequence (s :element-type '(unsigned-byte 8))
+    (cl-qrencode:encode-png-stream
+        text
+        s
+        :margin 1
+    ))
+)
+
+
+
+(defparameter *port* 42312)
+
+(defun makeuri (ip path)
+    (format nil "http://~A:~A/~A" ip *port* path)
+)
+
+(defun makeuri_with_args (ip path args)
+    (format nil "http://~A:~A/~A?~{~A=~A~^&~}" ip *port* path
+        (mapcan (lambda (pair)
+            (list (first pair) (second pair)))
+            args)))
+
+
+
+;;use http on develop
+(defparameter *server*
+    (make-instance 'hunchentoot:easy-acceptor
+        :port *port*))
+
+(defparameter *peers* nil)
+
+(hunchentoot:define-easy-handler (hello :uri "/ping") () 
+    "pong")
+
+(hunchentoot:define-easy-handler (gen_qr :uri "/qr") (text) 
+    (setf (hunchentoot:content-type*) "image/png")
+    (txt2qr text)
+)
+
+(hunchentoot:define-easy-handler (receive_txt :uri "/recv_txt") (msg)
+    msg
+)
+
+(hunchentoot:define-easy-handler (broadcast_text :uri "/brd_txt") (text)
+    ( if ( = (length *peers*) 0)
+        "EMPTY"
+        (progn
+        (loop for node in *peers* do 
+            (handler-case
+                (progn
+                    (dex:get (makeuri_with_args node "recv_txt" `(("msg" ,text)))
+                        :read-timeout 5
+                        :connect-timeout 3
+                        ))
+                (error (e)
+                    (declare (ignore e))
+                    "ERROR")))
+        "OK")))
+
+
+(hunchentoot:define-easy-handler (add_peer :uri "/add_peer") (peer)
+    (handler-case
+        (progn
+            (dex:get (makeuri peer "ping")
+                :read-timeout 1
+                :connect-timeout 1)
+                (pushnew peer *peers* :test #'string=)
+            "OK")
+        (error (e)
+            (declare (ignore e))
+                "Failed")))
+
+
+(hunchentoot:start *server*)
+
+(format t "Server Started~%")

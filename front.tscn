@@ -8,7 +8,7 @@ var DB
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	#ShowUserList()
+	ShowUserList()
 	pass
 func ShowUserList():
 	$Window.when_pop()
