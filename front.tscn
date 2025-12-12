@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://dsec3oj76x34l"]
+[gd_scene load_steps=9 format=3 uid="uid://dsec3oj76x34l"]
 
 [sub_resource type="GDScript" id="GDScript_7b4sd"]
 script/source = "extends Control
@@ -8,11 +8,93 @@ var DB
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	ShowUserList()
+	#ShowUserList()
 	pass
 func ShowUserList():
 	$Window.when_pop()
 	$Window.show()
+"
+
+[sub_resource type="GDScript" id="GDScript_0dlqn"]
+script/source = "extends Label
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	for a in IP.get_local_addresses():
+		if a.count(\".\") != 3:
+			continue
+		if a.begins_with(\"127.\") or a.begins_with(\"169.254.\"):
+			continue
+		text = a
+	
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
+
+[sub_resource type="GDScript" id="GDScript_dfuwt"]
+script/source = "extends Button
+
+
+
+var http_request
+func _ready() -> void:
+	http_request = HTTPRequest.new()
+	add_child(http_request)
+	http_request.request_completed.connect(self._http_request_completed)
+
+
+func is_ipv4(s: String) -> bool:
+	var parts := s.split(\".\", false)
+	if parts.size() != 4:
+		return false
+
+	for p in parts:
+		if p.is_empty() or not p.is_valid_int():
+			return false
+		var n := int(p)
+		if n < 0 or n > 255:
+			return false
+
+	return true
+
+func _on_button_down() -> void:
+	if is_ipv4($\"../ip\".text):
+		var body = $\"../ip\".text.uri_encode()
+		var err = http_request.request(\"http://127.0.0.1:42312/add_peer?peer=\"+body)
+		if err == OK:
+			$\"../ip\".text = \"\"
+
+func _http_request_completed(result, response_code, headers, body):
+	print(response_code)
+"
+
+[sub_resource type="GDScript" id="GDScript_ryhjl"]
+script/source = "extends CodeEdit
+
+var http_request
+func _ready() -> void:
+	http_request = HTTPRequest.new()
+	add_child(http_request)
+	http_request.request_completed.connect(self._http_request_completed)
+	pass # Replace with function body.
+
+func _on_gui_input(event: InputEvent) -> void:
+	if event.is_action_pressed(\"codeedit_save\"):
+		var body = text.uri_encode()
+		http_request.request(\"http://127.0.0.1:42312/qr?text=\"+body)
+		$\"../SharedFiles/ListScroll/List\".FillData(text, text)
+
+func _http_request_completed(result, response_code, headers, body):
+	var image = Image.new()
+	
+	var error = image.load_png_from_buffer(body)
+	if error != OK:
+		push_error(\"Couldn't load the image.\")
+	$\"../QR\".texture = ImageTexture.create_from_image(image)
 "
 
 [sub_resource type="GDScript" id="GDScript_uekkd"]
@@ -30,20 +112,31 @@ func _process(delta: float) -> void:
 
 
 func _on_open_file_btn_button_down() -> void:
-	$\"../../../FileDialog\".show()
+	$\"../../../../FileDialog\".show()
 "
 
 [sub_resource type="GDScript" id="GDScript_xncio"]
 script/source = "extends VBoxContainer
 const BTN := preload(\"res://data_btn.tscn\")
 
-# Called when the node enters the scene tree for the first time.
+var http_request
 func _ready() -> void:
-	pass # Replace with function body.
+	http_request = HTTPRequest.new()
+	add_child(http_request)
+	http_request.request_completed.connect(self._http_request_completed)
 
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
+func getTexts():
+	var err = http_request.request(\"http://127.0.0.1:42312/get_texts\")
+	
+
+
+var timer := 0.0
 func _process(delta: float) -> void:
+	timer += delta
+	if timer >= 1.0:
+		timer = 0.0
+		getTexts()
 	pass
 
 func Flush():
@@ -55,12 +148,25 @@ func FillData(title:String, msg:String):
 	var data = BTN.instantiate()
 	data.SetData(title, msg)
 	add_child(data)
+	var body = msg.uri_encode()
+	var err = http_request.request(\"http://127.0.0.1:42312/brd_txt?text=\"+body)
+	
 
 func SetData(data:String):
-	print(data)
+	DisplayServer.clipboard_set(data)
 	pass
 
-
+func _http_request_completed(result, response_code, headers, body):
+	var found
+	for head:String in headers:
+		if head.contains(\"Content-Type\"):
+			found = head
+	if found.contains(\"text/html\"):
+		#print(body)
+		pass
+	elif found.contains(\"text/csv\"):
+		for splt in body.get_string_from_utf8().split(\",\"):
+			print(Marshalls.base64_to_utf8(splt))
 
 func _on_file_dialog_file_selected(path: String) -> void:
 	var gpath = ProjectSettings.globalize_path(path)
@@ -133,52 +239,82 @@ grow_vertical = 2
 size_flags_horizontal = 3
 script = SubResource("GDScript_7b4sd")
 
-[node name="PanelContainer" type="PanelContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-metadata/_edit_use_anchors_ = true
 
-[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer"]
+[node name="connectionMeta" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
 
-[node name="codesend" type="CodeEdit" parent="PanelContainer/HBoxContainer"]
+[node name="MYIP" type="Label" parent="VBoxContainer/connectionMeta"]
+layout_mode = 2
+size_flags_horizontal = 3
+script = SubResource("GDScript_0dlqn")
+
+[node name="ip" type="TextEdit" parent="VBoxContainer/connectionMeta"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "IP Address..."
+context_menu_enabled = false
+emoji_menu_enabled = false
+shortcut_keys_enabled = false
+scroll_fit_content_height = true
+
+[node name="CONNECT" type="Button" parent="VBoxContainer/connectionMeta"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "CONNECT"
+script = SubResource("GDScript_dfuwt")
+
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+metadata/_edit_use_anchors_ = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/PanelContainer"]
+layout_mode = 2
+
+[node name="codesend" type="CodeEdit" parent="VBoxContainer/PanelContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 symbol_lookup_on_click = true
 line_folding = true
 gutters_draw_line_numbers = true
 gutters_draw_fold_gutter = true
-code_completion_enabled = true
 indent_use_spaces = true
 indent_automatic = true
 auto_brace_completion_enabled = true
 auto_brace_completion_highlight_matching = true
+script = SubResource("GDScript_ryhjl")
 
-[node name="QR" type="TextureRect" parent="PanelContainer/HBoxContainer"]
+[node name="QR" type="TextureRect" parent="VBoxContainer/PanelContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+expand_mode = 4
+stretch_mode = 5
 
-[node name="SharedFiles" type="VBoxContainer" parent="PanelContainer/HBoxContainer"]
+[node name="SharedFiles" type="VBoxContainer" parent="VBoxContainer/PanelContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 script = SubResource("GDScript_uekkd")
 
-[node name="ListScroll" type="ScrollContainer" parent="PanelContainer/HBoxContainer/SharedFiles"]
+[node name="ListScroll" type="ScrollContainer" parent="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="List" type="VBoxContainer" parent="PanelContainer/HBoxContainer/SharedFiles/ListScroll"]
+[node name="List" type="VBoxContainer" parent="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles/ListScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = SubResource("GDScript_xncio")
 
-[node name="OpenFileBTN" type="Button" parent="PanelContainer/HBoxContainer/SharedFiles"]
+[node name="OpenFileBTN" type="Button" parent="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles"]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -226,5 +362,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 script = SubResource("GDScript_xpgvt")
 
-[connection signal="button_down" from="PanelContainer/HBoxContainer/SharedFiles/OpenFileBTN" to="PanelContainer/HBoxContainer/SharedFiles" method="_on_open_file_btn_button_down"]
-[connection signal="file_selected" from="FileDialog" to="PanelContainer/HBoxContainer/SharedFiles/ListScroll/List" method="_on_file_dialog_file_selected"]
+[connection signal="button_down" from="VBoxContainer/connectionMeta/CONNECT" to="VBoxContainer/connectionMeta/CONNECT" method="_on_button_down"]
+[connection signal="gui_input" from="VBoxContainer/PanelContainer/HBoxContainer/codesend" to="VBoxContainer/PanelContainer/HBoxContainer/codesend" method="_on_gui_input"]
+[connection signal="button_down" from="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles/OpenFileBTN" to="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles" method="_on_open_file_btn_button_down"]
+[connection signal="file_selected" from="FileDialog" to="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles/ListScroll/List" method="_on_file_dialog_file_selected"]

@@ -28,6 +28,19 @@
 
 
 
+
+(defun convert-into-b64-list (rawlist)
+    (let (result)
+        (loop for node in rawlist do 
+            (let* 
+                ((safestr (prin1-to-string node) )
+                (octets (flexi-streams:string-to-octets safestr :external-format :utf-8))
+                (cvted (cl-base64:usb8-array-to-base64-string octets)))
+                (pushnew cvted result :test #'string=)))
+    result))
+
+
+
 ;;use http on develop
 (defparameter *server*
     (make-instance 'hunchentoot:easy-acceptor
@@ -35,21 +48,30 @@
 
 (defparameter *peers* nil)
 
+(defparameter *pure_texts* nil)
+
 (hunchentoot:define-easy-handler (hello :uri "/ping") () 
     "pong")
 
 (hunchentoot:define-easy-handler (gen_qr :uri "/qr") (text) 
     (setf (hunchentoot:content-type*) "image/png")
-    (txt2qr text)
-)
+    (txt2qr text))
 
 (hunchentoot:define-easy-handler (receive_txt :uri "/recv_txt") (msg)
-    msg
-)
+    (pushnew msg *pure_texts* :test #'string=)
+    "OK")
+
+(hunchentoot:define-easy-handler (get_texts :uri "/get_texts") ()
+    (setf (hunchentoot:content-type*) "text/csv")
+    (if ( = (length *pure_texts*) 0)
+        "NIL"
+        (format nil "~{~A~^,~}" (convert-into-b64-list *pure_texts*)))
+    )
+
 
 (hunchentoot:define-easy-handler (broadcast_text :uri "/brd_txt") (text)
     ( if ( = (length *peers*) 0)
-        "EMPTY"
+        "NIL"
         (progn
         (loop for node in *peers* do 
             (handler-case
@@ -60,7 +82,7 @@
                         ))
                 (error (e)
                     (declare (ignore e))
-                    "ERROR")))
+                    "ERR")))
         "OK")))
 
 
@@ -74,7 +96,7 @@
             "OK")
         (error (e)
             (declare (ignore e))
-                "Failed")))
+                "NIL")))
 
 
 (hunchentoot:start *server*)
