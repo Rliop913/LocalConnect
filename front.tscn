@@ -103,13 +103,15 @@ script/source = "extends VBoxContainer
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	pass # Replace with function body.
+	get_window().files_dropped.connect(_on_file_dnd)
+	
 
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
+func _on_file_dnd(files: PackedStringArray) -> void:
+	for path in files:
+		$ListScroll/List._on_file_dialog_file_selected(path)
+		
+	
 
 func _on_open_file_btn_button_down() -> void:
 	$\"../../../../FileDialog\".show()
@@ -122,7 +124,7 @@ const BTN := preload(\"res://data_btn.tscn\")
 var http_request
 func _ready() -> void:
 	http_request = HTTPRequest.new()
-	add_child(http_request)
+	#add_child(http_request)
 	http_request.request_completed.connect(self._http_request_completed)
 
 
@@ -150,7 +152,14 @@ func FillData(title:String, msg:String):
 	add_child(data)
 	var body = msg.uri_encode()
 	var err = http_request.request(\"http://127.0.0.1:42312/brd_txt?text=\"+body)
-	
+
+func add_file(path:String):
+	var btndata = BTN.instantiate()
+	var gpath = ProjectSettings.globalize_path(path)
+	btndata.SetData(path.get_file().get_basename(), gpath)
+	add_child(btndata)
+	var body = gpath.uri_encode()
+	http_request.request(\"http://127.0.0.1:42312/add-file?file=\"+body)
 
 func SetData(data:String):
 	DisplayServer.clipboard_set(data)
@@ -169,8 +178,7 @@ func _http_request_completed(result, response_code, headers, body):
 			print(Marshalls.base64_to_utf8(splt))
 
 func _on_file_dialog_file_selected(path: String) -> void:
-	var gpath = ProjectSettings.globalize_path(path)
-	FillData(path.get_file().get_basename(), gpath)
+	add_file(path)
 	
 "
 
