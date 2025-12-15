@@ -1,8 +1,8 @@
 ;;;; clisp-back.asd
 
 (asdf:defsystem #:clisp-back
-  :description "Describe clisp-back here"
-  :author "Your Name <your.name@example.com>"
+  :description "LocalConnect Backend codebase"
+  :author "Rliop913"
   :license  "MIT"
   :version "0.0.1"
   :depends-on (
@@ -11,4 +11,7 @@
     :dexador)
   :serial t
   :components ((:file "package")
+                (:file "utils")
+                (:file "peer2peer")
+                (:file "front2back")
                (:file "clisp-back")))
