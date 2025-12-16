@@ -8,6 +8,7 @@
   :depends-on (
     :cl-qrencode
     :hunchentoot
+    :cl-csv
     :dexador)
   :serial t
   :components ((:file "package")

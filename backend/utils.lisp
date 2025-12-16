@@ -50,7 +50,7 @@
 
 
 (defun encode-csv (lists)
-    (cl-csv:write-csv lists))
+    (cl-csv:write-csv-row lists))
 
 
 (defparameter *peers* nil)

@@ -23,14 +23,21 @@
     (setf (hunchentoot:content-type*) "text/csv")
     (if ( = (length *pure_texts*) 0)
         "NIL"
-        (encode-csv-b64 *pure_texts*)))
+        (encode-csv *pure_texts*)))
 
-(hunchentoot::define-easy-handler (list-files :uri "/list-files") ()
+(hunchentoot:define-easy-handler (list-files :uri "/list-files") ()
     (setf (hunchentoot:content-type*) "text/csv")
     (if ( = (length *globfiles*) 0)
         "NIL"
-        (encode-csv-b64 *globfiles*)))
+        (encode-csv *globfiles*)))
 
+(hunchentoot:define-easy-handler (list-peers :uri "/list-peers") ()
+    (setf (hunchentoot:content-type*) "text/csv")
+    (if (= (length *peers*) 0)
+        "NIL"
+        (encode-csv *peers*)
+    )
+)
 
 
 (hunchentoot:start *server*)

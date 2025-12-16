@@ -11,6 +11,9 @@
                 :connect-timeout 1)
                 (pushnew peer *peers* :test #'string=)
                 (broadcast-peer-list)
+            (dolist (p *peers*)
+                (dolist ( gotpeer (first (parse-csv (dex:get (makeuri p "list-peers")))))
+                    (pushnew gotpeer *peers* :test #'string=)))
             "OK")
         (error (e)
             (declare (ignore e))
@@ -28,18 +31,20 @@
 
 
 (hunchentoot:define-easy-handler (download :uri "/download") (file)
-    (if (member file *localfiles* :test #'string=)
-        (if (probe-file file)
-            (progn
-                    (setf (hunchentoot:header-out :content-disposition)
-                        (format nil "attachment; filename=\"~A\"" (file-namestring file)))
-                    (hunchentoot:handle-static-file file))
+    (let ((decoded (hunchentoot:url-decode file :utf-8 nil)))
+        (if (member decoded *localfiles* :test #'string=)
+            (if (probe-file decoded)
+                (progn
+                        (setf (hunchentoot:header-out :content-disposition)
+                            (format nil "attachment; filename=\"~A\"" (file-namestring decoded)))
+                        (hunchentoot:handle-static-file decoded))
+                (progn
+                    (setf (hunchentoot:return-code*) 404)
+                    "NOT FOUND"))
             (progn
                 (setf (hunchentoot:return-code*) 404)
-                "NOT FOUND"))
-        (progn
-            (setf (hunchentoot:return-code*) 404)
-            "REJECTED")))
+                (format nil "REJECTED-~A" decoded))))
+    )
 
 (hunchentoot:define-easy-handler (add-text :uri "/add-text") (text)
     ( if ( = (length *peers*) 0)
@@ -48,11 +53,9 @@
         (loop for node in *peers* do 
             (handler-case
                 (progn
-                    (dex:get (makeuri_with_args node "recv_txt" `(("msg" ,text)))
-                        :read-timeout 5
-                        :connect-timeout 3
-                        ))
+                    (pushnew text *pure_texts* :test #'string=)
+                    (dex:post (makeuri node "recv_txt")
+                        :content `(("txt" . ,text))))
                 (error (e)
-                    (declare (ignore e))
-                    "ERR")))
+                    e)))
         "OK")))

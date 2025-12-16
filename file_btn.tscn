@@ -1,10 +1,58 @@
-[gd_scene format=3 uid="uid://okrgdyioohxj"]
+[gd_scene load_steps=3 format=3 uid="uid://okrgdyioohxj"]
+
+[ext_resource type="Texture2D" uid="uid://im2261nmrd1o" path="res://file_exp100.svg" id="1_g0mlv"]
+
+[sub_resource type="GDScript" id="GDScript_g0mlv"]
+script/source = "extends Button
+var innerData:String = \"\"
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+func SetData(title:String, data:String) -> void:
+	text = title
+	innerData = data
+
+
+func _on_button_down() -> void:
+	pass
+
+
+func _on_button_up() -> void:
+	
+	pass # Replace with function body.
+
+
+func _on_pressed() -> void:
+	$\"../\".Download(innerData)
+	pass # Replace with function body.
+	
+func _get_drag_data(at_position: Vector2) -> Variant:
+	var preview := TextureRect.new()
+	preview.texture=icon
+	set_drag_preview(preview)
+	var ip
+	for a in IP.get_local_addresses():
+		if a.count(\".\") != 3:
+			continue
+		if a.begins_with(\"127.\") or a.begins_with(\"169.254.\"):
+			continue
+		ip = a
+	return \"http://\"+ip+\":42312/download?file=\" + innerData.uri_encode()
+"
 
 [node name="file_btn" type="Button"]
+custom_minimum_size = Vector2(150, 50)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
+icon = ExtResource("1_g0mlv")
+script = SubResource("GDScript_g0mlv")
+
+[connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]
+[connection signal="pressed" from="." to="." method="_on_pressed"]

@@ -1,1 +1,1 @@
-[]
+[{"pkgName":"cl-user","text":"1"},{"pkgName":"cl-user","text":"(ql:quickload :clisp-back)"},{"pkgName":"cl-user","text":"(format t \"??\")"}]

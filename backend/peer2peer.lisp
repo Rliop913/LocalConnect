@@ -11,9 +11,8 @@
         (pushnew p *peers* :test #'string=))
     "OK")
 
-(hunchentoot:define-easy-handler (receive_txt :uri "/recv_txt") (csv)
-    (dolist (p (parse-csv-b64 csv))
-        (pushnew p *pure_texts* :test #'string=))
+(hunchentoot:define-easy-handler (receive_txt :uri "/recv_txt") (txt)
+        (pushnew txt *pure_texts* :test #'string=)
     "OK")
 
 (hunchentoot:define-easy-handler (recv-file-list :uri "/recv-file-list") (filescsv)
@@ -30,3 +29,4 @@
     (loop for target in *peers* do
         (dex:post (makeuri target "recv-file-list")
         :content `(("filescsv" . ,(encode-csv-b64 *globfiles*))))))
+

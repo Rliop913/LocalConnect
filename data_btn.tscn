@@ -1,9 +1,10 @@
-[gd_scene load_steps=2 format=3 uid="uid://bts8fyi6gthgw"]
+[gd_scene load_steps=3 format=3 uid="uid://bts8fyi6gthgw"]
+
+[ext_resource type="Texture2D" uid="uid://cd0w8ro2dmf0" path="res://copy100.svg" id="1_sg6bo"]
 
 [sub_resource type="GDScript" id="GDScript_b7tee"]
 script/source = "extends Button
 var innerData:String = \"\"
-
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	pass # Replace with function body.
@@ -14,7 +15,23 @@ func SetData(title:String, data:String) -> void:
 
 
 func _on_button_down() -> void:
+	pass
+
+
+func _on_button_up() -> void:
+	pass # Replace with function body.
+
+
+func _on_pressed() -> void:
 	$\"../\".SetData(innerData)
+	pass # Replace with function body.
+
+func _get_drag_data(at_position: Vector2) -> Variant:
+	var preview := TextureRect.new()
+	preview.texture=icon
+	set_drag_preview(preview)
+	
+	return innerData
 "
 
 [node name="DataBTN" type="Button"]
@@ -25,6 +42,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
+icon = ExtResource("1_sg6bo")
+autowrap_mode = 3
 script = SubResource("GDScript_b7tee")
 
 [connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]
+[connection signal="pressed" from="." to="." method="_on_pressed"]

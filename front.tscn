@@ -1,4 +1,7 @@
-[gd_scene load_steps=9 format=3 uid="uid://dsec3oj76x34l"]
+[gd_scene load_steps=12 format=3 uid="uid://dsec3oj76x34l"]
+
+[ext_resource type="Texture2D" uid="uid://dkkvgl8dcmqci" path="res://sw_rignt100.svg" id="1_xpgvt"]
+[ext_resource type="Texture2D" uid="uid://cv0c61fxsl2nr" path="res://upload_icon_100.svg" id="2_7b4sd"]
 
 [sub_resource type="GDScript" id="GDScript_7b4sd"]
 script/source = "extends Control
@@ -83,7 +86,7 @@ func _ready() -> void:
 	pass # Replace with function body.
 
 func _on_gui_input(event: InputEvent) -> void:
-	if event.is_action_pressed(\"codeedit_save\"):
+	if event.is_action_pressed(\"codeedit_save\") && text != \"\":
 		var body = text.uri_encode()
 		http_request.request(\"http://127.0.0.1:42312/qr?text=\"+body)
 		$\"../SharedFiles/ListScroll/List\".FillData(text, text)
@@ -94,7 +97,41 @@ func _http_request_completed(result, response_code, headers, body):
 	var error = image.load_png_from_buffer(body)
 	if error != OK:
 		push_error(\"Couldn't load the image.\")
-	$\"../QR\".texture = ImageTexture.create_from_image(image)
+	$\"../separator/QR\".texture = ImageTexture.create_from_image(image)
+	$\"../separator/TextureRect\".flip_h = false
+"
+
+[sub_resource type="GDScript" id="GDScript_iltax"]
+script/source = "extends VBoxContainer
+
+var httpreq:HTTPRequest
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	httpreq = HTTPRequest.new()
+	add_child(httpreq)
+	httpreq.request_completed.connect(self._http_request_completed)
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
+	return true
+
+func _drop_data(at_position: Vector2, data: Variant) -> void:
+	var body = data.uri_encode()
+	httpreq.request(\"http://127.0.0.1:42312/qr?text=\"+body)
+
+func _http_request_completed(result, response_code, headers, body):
+	var image = Image.new()
+	
+	var error = image.load_png_from_buffer(body)
+	if error != OK:
+		push_error(\"Couldn't load the image.\")
+	$\"./QR\".texture = ImageTexture.create_from_image(image)
+	$\"TextureRect\".flip_h = true
 "
 
 [sub_resource type="GDScript" id="GDScript_uekkd"]
@@ -120,62 +157,132 @@ func _on_open_file_btn_button_down() -> void:
 [sub_resource type="GDScript" id="GDScript_xncio"]
 script/source = "extends VBoxContainer
 const BTN := preload(\"res://data_btn.tscn\")
-
+const fileBTN := preload(\"res://file_btn.tscn\")
+var DownRoot:String
 var http_request
-func _ready() -> void:
-	http_request = HTTPRequest.new()
-	#add_child(http_request)
-	http_request.request_completed.connect(self._http_request_completed)
+
+var pure_text_hash_list:Dictionary
+var file_hash_list:Dictionary
 
 
-func getTexts():
-	var err = http_request.request(\"http://127.0.0.1:42312/get_texts\")
+var text_req:HTTPRequest
+var file_req:HTTPRequest
+
+func fill_text_hash_list(data:String) -> bool:
+	
+	var res = data.sha256_text()
+	if pure_text_hash_list.has(res):
+		return false #return false if already exists
+	else:
+		pure_text_hash_list[res] = true #add new text
+		return true #return true if added new text
+	
+func fill_file_hash_list(data:String) -> bool:
+	
+	var res = data.sha256_text()
+	if file_hash_list.has(res):
+		return false #return false if already exists
+	else:
+		file_hash_list[res] = true #add new text
+		return true #return true if added new text
 	
 
+func _ready() -> void:
+	http_request = HTTPRequest.new()
+	add_child(http_request)
+	http_request.request_completed.connect(self._http_request_completed)
+	text_req = HTTPRequest.new()
+	add_child(text_req)
+	text_req.request_completed.connect(self.update_text_lists)
+	file_req = HTTPRequest.new()
+	add_child(file_req)
+	file_req.request_completed.connect(self.update_file_lists)
+	DownRoot = OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)
 
-var timer := 0.0
-func _process(delta: float) -> void:
-	timer += delta
-	if timer >= 1.0:
-		timer = 0.0
-		getTexts()
-	pass
+func Refresh_lists():
+	text_req.request(\"http://127.0.0.1:42312/list-texts\")
+	file_req.request(\"http://127.0.0.1:42312/list-files\")
+	
 
-func Flush():
-	for i in get_children():
-		i.queue_free()
+func update_text_lists(result, response_code, headers, body):
+	if body.get_string_from_utf8() == \"NIL\":
+		return
+	for splt in body.get_string_from_utf8().split(\",\"):
+		
+		if fill_text_hash_list(splt):
+			var puretxt = Marshalls.base64_to_utf8(splt)
+			
+			var data = BTN.instantiate()
+			data.SetData(puretxt, puretxt)
+			add_child(data)
+
+func update_file_lists(result, response_code, headers, body):
+	if body.get_string_from_utf8() == \"NIL\":
+		return
+	for splt:String in body.get_string_from_utf8().split(\",\"):
+		if fill_file_hash_list(splt):
+			var ip_path = splt.split(\" \")[1].replace(\")\", \"\")
+			
+			
+			var btndata = fileBTN.instantiate()
+			btndata.SetData(ip_path.get_file().get_basename(), ip_path)
+			add_child(btndata)
 	
 
 func FillData(title:String, msg:String):
 	var data = BTN.instantiate()
 	data.SetData(title, msg)
 	add_child(data)
-	var body = msg.uri_encode()
-	var err = http_request.request(\"http://127.0.0.1:42312/brd_txt?text=\"+body)
+	fill_text_hash_list(msg)
+	var body = Marshalls.utf8_to_base64(msg).uri_encode()
+	var err = http_request.request(\"http://127.0.0.1:42312/add-text?text=\"+body)
 
 func add_file(path:String):
-	var btndata = BTN.instantiate()
+	var btndata = fileBTN.instantiate()
 	var gpath = ProjectSettings.globalize_path(path)
 	btndata.SetData(path.get_file().get_basename(), gpath)
 	add_child(btndata)
 	var body = gpath.uri_encode()
-	http_request.request(\"http://127.0.0.1:42312/add-file?file=\"+body)
+	var err = http_request.request(\"http://127.0.0.1:42312/add-file?file=\"+body)
+	if err != OK:
+		print(err)
 
 func SetData(data:String):
 	DisplayServer.clipboard_set(data)
 	pass
 
+ 
+func down_file(rootdest:String, filename:String, body):
+	filename = filename.replace(\"\\\"\", \"\")
+	var f := FileAccess.open(rootdest.path_join(filename), FileAccess.WRITE)
+	f.store_buffer(body)
+	f.close()
+
 func _http_request_completed(result, response_code, headers, body):
+	
 	var found
 	for head:String in headers:
+		if head.contains(\"Content-Disposition: attachment;\"):
+			var filename:String = head.split(\";\")[1].split(\"=\")[1]
+			down_file(DownRoot, filename, body)
+			return
+		
 		if head.contains(\"Content-Type\"):
 			found = head
+		
 	if found.contains(\"text/html\"):
+		print(body.get_string_from_utf8())
 		#print(body)
 		pass
 	elif found.contains(\"text/csv\"):
 		for splt in body.get_string_from_utf8().split(\",\"):
 			print(Marshalls.base64_to_utf8(splt))
+	
+
+func Download(path:String):
+	print(path)
+	http_request.request(\"http://127.0.0.1:42312/download?file=\" + path.uri_encode())
+
 
 func _on_file_dialog_file_selected(path: String) -> void:
 	add_file(path)
@@ -300,10 +407,21 @@ auto_brace_completion_enabled = true
 auto_brace_completion_highlight_matching = true
 script = SubResource("GDScript_ryhjl")
 
-[node name="QR" type="TextureRect" parent="VBoxContainer/PanelContainer/HBoxContainer"]
+[node name="separator" type="VBoxContainer" parent="VBoxContainer/PanelContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+script = SubResource("GDScript_iltax")
+
+[node name="QR" type="TextureRect" parent="VBoxContainer/PanelContainer/HBoxContainer/separator"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 expand_mode = 4
+stretch_mode = 5
+
+[node name="TextureRect" type="TextureRect" parent="VBoxContainer/PanelContainer/HBoxContainer/separator"]
+layout_mode = 2
+texture = ExtResource("1_xpgvt")
 stretch_mode = 5
 
 [node name="SharedFiles" type="VBoxContainer" parent="VBoxContainer/PanelContainer/HBoxContainer"]
@@ -327,11 +445,13 @@ custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Select File"
+icon = ExtResource("2_7b4sd")
 
 [node name="FileDialog" type="FileDialog" parent="."]
 title = "Open a File or Directory"
 ok_button_text = "Open"
 file_mode = 3
+access = 2
 show_hidden_files = true
 use_native_dialog = true
 
@@ -370,7 +490,12 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 script = SubResource("GDScript_xpgvt")
 
+[node name="Refresh" type="Timer" parent="."]
+autostart = true
+ignore_time_scale = true
+
 [connection signal="button_down" from="VBoxContainer/connectionMeta/CONNECT" to="VBoxContainer/connectionMeta/CONNECT" method="_on_button_down"]
 [connection signal="gui_input" from="VBoxContainer/PanelContainer/HBoxContainer/codesend" to="VBoxContainer/PanelContainer/HBoxContainer/codesend" method="_on_gui_input"]
 [connection signal="button_down" from="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles/OpenFileBTN" to="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles" method="_on_open_file_btn_button_down"]
 [connection signal="file_selected" from="FileDialog" to="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles/ListScroll/List" method="_on_file_dialog_file_selected"]
+[connection signal="timeout" from="Refresh" to="VBoxContainer/PanelContainer/HBoxContainer/SharedFiles/ListScroll/List" method="Refresh_lists"]
