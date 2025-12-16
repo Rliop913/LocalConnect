@@ -39,7 +39,9 @@
     )
 )
 
+(defun main ()
+    (hunchentoot:start *server*)
+    (loop (sleep 60))
+)
 
-(hunchentoot:start *server*)
 
-(format t "Server Started~%")

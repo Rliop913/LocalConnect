@@ -11,6 +11,7 @@ config_version=5
 [application]
 
 config/name="LocalConnect"
+run/main_scene="uid://dsec3oj76x34l"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
